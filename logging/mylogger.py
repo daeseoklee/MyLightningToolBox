@@ -61,6 +61,7 @@ class MyLogger(TensorBoardLogger):
         arg_str = ' '.join(xs[2:])
         command = f'{commandname} {self.srcfile_prefix}{srcfilename} ' + arg_str
         
+        self.train_dir.mkdir(exist_ok=True, parents=True)
         filename = str(self.train_dir / 'command.txt')
         with open(filename, 'w') as writer:
             writer.write(command)
