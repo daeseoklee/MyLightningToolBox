@@ -14,6 +14,7 @@ EPOCH_DEPRECATION_WARNING = (
 )
 
 # originally from torch.optim.lr_scheduler. 
+# added "num_reduced" attribute
 # superclass of WarmupAndReduceLROnPlateau implemented in this module
 class ReduceLROnPlateau(object):
     """Reduce learning rate when a metric has stopped improving.
@@ -107,6 +108,8 @@ class ReduceLROnPlateau(object):
         self.best = self.mode_worse
         self.cooldown_counter = 0
         self.num_bad_epochs = 0
+        
+        self.num_reduced = 0
 
     def step(self, metrics, epoch=None):
         # convert `metrics` to float, in case it's a zero-dim Tensor
@@ -145,6 +148,7 @@ class ReduceLROnPlateau(object):
                                  "%.5d") % epoch
                     print('Epoch {}: reducing learning rate'
                           ' of group {} to {:.4e}.'.format(epoch_str, i, new_lr))
+        self.num_reduced += 1
 
     @property
     def in_cooldown(self):
@@ -228,8 +232,7 @@ class WarmupAndReduceLROnPlateau(ReduceLROnPlateau):
     def get_lr(self):
         assert self.current_step <= self.warmup_steps
         return self.begin_lr + self.gap_lr * self.current_step / self.warmup_steps
-        
-
+    
     def step(self, on_epoch_end=False, metrics=None):
         """
         Should be called in two difference places:
