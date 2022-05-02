@@ -1,9 +1,11 @@
 from math import sin, pi
 from urllib.parse import non_hierarchical
+from typing import Union, List
 import torch
 from torch.optim.lr_scheduler import _LRScheduler
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
+import torch.nn as nn
 from math import ceil, floor
 
 def get_scheduler(optimizer:torch.optim.Optimizer,
@@ -57,11 +59,84 @@ class LateTotalstepsScheduler(_LRScheduler):
         self.total_steps = None 
     def set_total_steps(self, total_steps):
         self.total_steps = total_steps 
+
+
+class WarmupDecay(LateTotalstepsScheduler):
+    """
+    """
     
+    def __init__(self, 
+                 optimizer : torch.optim.Optimizer,
+                 max_lr : float = 1e-4,
+                 warmup_steps : int = 10000,
+                 min_lr : float = 1e-10,
+                 last_step : int = -1,
+                 freeze_til : Union[None, List[Union[None, int]]] = None
+        ):
+        
+        self.min_lr = min_lr
+        self.max_lr = max_lr
+        self.gap_lr = max_lr - min_lr
+        self.warmup_steps = warmup_steps
+        self.current_step = last_step + 1
+        
+        
+        if freeze_til is not None:
+            assert type(freeze_til) == list
+            assert len(optimizer.param_groups) == len(freeze_til)
+            self.freeze_til = freeze_til 
+        
+        super().__init__(optimizer, last_step)
+        
+        self.init_lr()
+    
+    def init_lr(self):
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = self.min_lr
+
+    def get_lr(self):
+        if self.current_step <= self.warmup_steps:
+            return self.min_lr + self.gap_lr * self.current_step / self.warmup_steps
+        return self.get_lr_after_warmup()
+    
+    def get_lr_after_warmup(self):
+        raise Exception('Should be implemented in the subclass')
+    
+
+    def step(self):
+        self.current_step += 1
+        lr = self.get_lr()
+        for i, param_group in enumerate(self.optimizer.param_groups):
+            if hasattr(self, 'freeze_til') and self.freeze_til[i] is not None and self.current_step <= self.freeze_til[i]:
+                param_group['lr'] = 0.0
+            else:
+                param_group['lr'] = lr
+
+
+class WarmupLinearDecay(WarmupDecay):
+    def get_lr_after_warmup(self):
+        if self.current_step < self.total_steps:
+            steps_from_apex = self.current_step - self.warmup_steps
+            return self.max_lr - self.gap_lr * steps_from_apex / (self.total_steps - self.warmup_steps)
+
+        return self.min_lr
+    
+class WarmupCosineDecay(WarmupDecay):
+    def get_lr_after_warmup(self):
+        if self.current_step < self.total_steps:
+            steps_from_apex = self.current_step - self.warmup_steps
+            phase = steps_from_apex / (self.total_steps - self.warmup_steps)
+            return self.max_lr - self.gap_lr * (0.5 + 0.5 * sin(pi * (phase - 0.5)))
             
+        return self.min_lr
+    
+class WarmupConstant(WarmupDecay):
+    def get_lr_after_warmup(self):
+        return self.max_lr
+
+
+""" 
 class WarmupLinearDecay(LateTotalstepsScheduler):
-    """
-    """
     
     def __init__(self, 
                  optimizer : torch.optim.Optimizer,
@@ -102,9 +177,7 @@ class WarmupLinearDecay(LateTotalstepsScheduler):
             param_group['lr'] = lr
             
 class WarmupCosineDecay(LateTotalstepsScheduler):
-    """
-    """
-    
+
     def __init__(self, 
                  optimizer : torch.optim.Optimizer,
                  max_lr : float = 1e-4,
@@ -145,8 +218,6 @@ class WarmupCosineDecay(LateTotalstepsScheduler):
             param_group['lr'] = lr
     
 class WarmupConstant(LateTotalstepsScheduler):
-    """
-    """
     
     def __init__(self, 
                  optimizer : torch.optim.Optimizer,
@@ -181,3 +252,8 @@ class WarmupConstant(LateTotalstepsScheduler):
         lr = self.get_lr()
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = lr
+
+
+"""
+
+
