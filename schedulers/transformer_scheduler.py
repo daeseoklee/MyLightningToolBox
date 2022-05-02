@@ -107,8 +107,11 @@ class WarmupDecay(LateTotalstepsScheduler):
         self.current_step += 1
         lr = self.get_lr()
         for i, param_group in enumerate(self.optimizer.param_groups):
-            if hasattr(self, 'freeze_til') and self.freeze_til[i] is not None and self.current_step <= self.freeze_til[i]:
-                param_group['lr'] = 0.0
+            if hasattr(self, 'freeze_til') and self.freeze_til[i] is not None:
+                if self.freeze_til[i] == -1 or self.current_step <= self.freeze_til:
+                    param_group['lr'] = 0.0
+                else:
+                    param_group['lr'] = lr
             else:
                 param_group['lr'] = lr
 
