@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger 
 
 class MyLogger(TensorBoardLogger):
-    def __init__(self, metrics_to_log=['val_loss'], train_info=['dataset_config', 'train_config'], model_info=['model_config'], srcfile_prefix='', **kwargs):
+    def __init__(self, metrics_to_log=['val_loss'], train_info=['dataset_config', 'train_config'], model_info=['model_config'], srcfile_prefix='', python_run_module=False, **kwargs):
         super().__init__(**kwargs)
         self.mylogger_metrics_to_log = metrics_to_log
         self.train_dir = Path(self.log_dir)
@@ -19,6 +19,7 @@ class MyLogger(TensorBoardLogger):
         self.train_info = train_info
         self.model_info = model_info
         self.srcfile_prefix = srcfile_prefix
+        self.python_run_module = python_run_module
         self.mylogger_metrics = {}                                                         
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
         for metric, val in metrics.items():
@@ -54,12 +55,25 @@ class MyLogger(TensorBoardLogger):
     
     def write_command(self):
         xs = psutil.Process(os.getpid()).cmdline()
-        commandname = xs[0].split('/')[-1]
-        srcfilename = xs[1].split('/')[-1] 
-        assert commandname.startswith('python')
-        assert srcfilename.endswith('.py')
-        arg_str = ' '.join(xs[2:])
-        command = f'{commandname} {self.srcfile_prefix}{srcfilename} ' + arg_str
+        if self.python_run_module:
+            i = -1
+            python_found = False
+            for i in range(len(xs)):
+                if xs[i].split('/')[-1].startswith('python'):
+                    python_found = True 
+                    break 
+            assert python_found, xs
+            assert xs[i+1] == '-m'
+            module_name = xs[i+2]
+            arg_str = ' '.join(xs[i+3:])
+            command = f'python -m {module_name} {arg_str}'
+        else:
+            commandname = xs[0].split('/')[-1]
+            srcfilename = xs[1].split('/')[-1] 
+            assert commandname.startswith('python')
+            assert srcfilename.endswith('.py')
+            arg_str = ' '.join(xs[2:])
+            command = f'{commandname} {self.srcfile_prefix}{srcfilename} ' + arg_str
         
         self.train_dir.mkdir(exist_ok=True, parents=True)
         filename = str(self.train_dir / 'command.txt')
