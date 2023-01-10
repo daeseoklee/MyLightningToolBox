@@ -29,9 +29,12 @@ class SchedulerLateTotalstepsSetter(pl.Callback):
             sampler = loader.sampler
             batch_size = loader.batch_size
             assert hasattr(sampler, 'num_samples')
+            num_samples = sampler.num_samples
+            if num_samples is None:
+                num_samples = len(sampler)
             if loader.drop_last:
-                return floor(sampler.num_samples / batch_size)
-            return ceil(sampler.num_samples / batch_size)
+                return floor(num_samples / batch_size)
+            return ceil(num_samples / batch_size)
         elif self.length_from == 'dataloader':
             return len(loader)
             
