@@ -40,9 +40,9 @@ class SchedulerLateTotalstepsSetter(pl.Callback):
             
             
     def on_train_start(self, trainer, pl_module:"pl.LightningModule"):
-        for lr_scheduler in trainer.lr_schedulers:
-            if hasattr(lr_scheduler['scheduler'], 'set_total_steps'):
-                scheduler:LateTotalstepsScheduler = lr_scheduler['scheduler']
+        for lr_scheduler_config in trainer.lr_scheduler_configs:
+            if hasattr(lr_scheduler_config.scheduler, 'set_total_steps'):
+                scheduler:LateTotalstepsScheduler = lr_scheduler_config.scheduler
                 
                 loader = pl_module.train_dataloader()
                 batch_per_epoch_per_device = self.get_batch_per_epoch(loader)
