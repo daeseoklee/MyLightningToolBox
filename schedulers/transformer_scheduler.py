@@ -52,7 +52,7 @@ class SchedulerLateTotalstepsSetter(pl.Callback):
                     
                 total_steps = batch_per_epoch_per_device // accumulate * max_epochs
                 
-                scheduler.set_total_steps(total_steps)
+                scheduler.set_total_steps(total_steps, max_epochs=max_epochs)
                 
         
     
@@ -60,8 +60,16 @@ class LateTotalstepsScheduler(_LRScheduler):
     def __init__(self, optimizer, last_step):
         super().__init__(optimizer, last_step)
         self.total_steps = None 
-    def set_total_steps(self, total_steps):
+    def set_total_steps(self, total_steps, max_epochs=None):
         self.total_steps = total_steps 
+        self.max_epochs = max_epochs
+        if self.constant_from_epoch is not None:
+            assert self.max_epochs is not None 
+            self.constant_from_step = int(self.total_steps * self.constant_from_epoch / self.max_epochs)
+            assert self.warmup_steps <= self.constant_from_step
+        else:
+            self.constant_from_step = None
+            
 
 
 class WarmupDecay(LateTotalstepsScheduler):
@@ -74,7 +82,8 @@ class WarmupDecay(LateTotalstepsScheduler):
                  warmup_steps : int = 10000,
                  min_lr : float = 1e-10,
                  last_step : int = -1,
-                 freeze_til : Union[None, List[Union[None, int]]] = None
+                 freeze_til : Union[None, List[Union[None, int]]] = None,
+                 constant_from_epoch = None
         ):
         
         self.min_lr = min_lr
@@ -82,7 +91,7 @@ class WarmupDecay(LateTotalstepsScheduler):
         self.gap_lr = max_lr - min_lr
         self.warmup_steps = warmup_steps
         self.current_step = last_step + 1
-        
+        self.constant_from_epoch = constant_from_epoch 
         
         if freeze_til is not None:
             assert type(freeze_til) == list
@@ -98,9 +107,13 @@ class WarmupDecay(LateTotalstepsScheduler):
             param_group['lr'] = self.min_lr
 
     def get_lr(self):
+        print(self.current_step)
         if self.current_step <= self.warmup_steps:
             return self.min_lr + self.gap_lr * self.current_step / self.warmup_steps
-        return self.get_lr_after_warmup()
+        elif self.constant_from_epoch is not None and self.current_step >= self.constant_from_step:
+            return self.last_lr 
+        else:
+            return self.get_lr_after_warmup()
     
     def get_lr_after_warmup(self):
         raise Exception('Should be implemented in the subclass')
@@ -109,6 +122,7 @@ class WarmupDecay(LateTotalstepsScheduler):
     def step(self):
         self.current_step += 1
         lr = self.get_lr()
+        self.last_lr = lr 
         for i, param_group in enumerate(self.optimizer.param_groups):
             if hasattr(self, 'freeze_til') and self.freeze_til[i] is not None:
                 if self.freeze_til[i] == -1 or self.current_step <= self.freeze_til[i]:
