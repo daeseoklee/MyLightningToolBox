@@ -83,7 +83,8 @@ class WarmupDecay(LateTotalstepsScheduler):
                  min_lr : float = 1e-10,
                  last_step : int = -1,
                  freeze_til : Union[None, List[Union[None, int]]] = None,
-                 constant_from_epoch = None
+                 constant_from_epoch = None,
+                 constant_lr = None
         ):
         
         self.min_lr = min_lr
@@ -92,6 +93,7 @@ class WarmupDecay(LateTotalstepsScheduler):
         self.warmup_steps = warmup_steps
         self.current_step = last_step + 1
         self.constant_from_epoch = constant_from_epoch 
+        self.constant_lr = constant_lr
         
         if freeze_til is not None:
             assert type(freeze_til) == list
@@ -111,6 +113,8 @@ class WarmupDecay(LateTotalstepsScheduler):
         if self.current_step <= self.warmup_steps:
             return self.min_lr + self.gap_lr * self.current_step / self.warmup_steps
         elif self.constant_from_epoch is not None and self.current_step >= self.constant_from_step:
+            if self.constant_lr is not None:
+                return self.constant_lr
             return self.last_lr 
         else:
             return self.get_lr_after_warmup()

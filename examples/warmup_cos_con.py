@@ -58,7 +58,8 @@ class MyModel(pl.LightningModule):
         scheduler_config = {
             'max_lr': 0.001,
             'warmup_steps': 80,
-            'constant_from_epoch': 30
+            'constant_from_epoch': 30,
+            'constant_lr': 0.001
         }
         
         optimizer = AdamW(self.parameters(), lr=scheduler_config['max_lr']) # The lr will be fixed by the scheduler
