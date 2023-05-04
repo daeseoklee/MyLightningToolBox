@@ -109,7 +109,6 @@ class WarmupDecay(LateTotalstepsScheduler):
             param_group['lr'] = self.min_lr
 
     def get_lr(self):
-        print(self.current_step)
         if self.current_step <= self.warmup_steps:
             return self.min_lr + self.gap_lr * self.current_step / self.warmup_steps
         elif self.constant_from_epoch is not None and self.current_step >= self.constant_from_step:
