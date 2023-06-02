@@ -7,6 +7,12 @@ import csv
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger 
 
+def quote_args(arg_list):
+    def has_to_quote(arg):
+        return any(c in arg for c in ['(', ')'])
+
+    return [f'"{arg}"' if has_to_quote(arg) else arg for arg in arg_list]
+
 class MyLogger(TensorBoardLogger):
     def __init__(self, metrics_to_log=['val_loss'], train_info=['dataset_config', 'train_config'], model_info=['model_config'], srcfile_prefix='', python_run_module=False, **kwargs):
         super().__init__(**kwargs)
@@ -65,14 +71,14 @@ class MyLogger(TensorBoardLogger):
             assert python_found, xs
             assert xs[i+1] == '-m'
             module_name = xs[i+2]
-            arg_str = ' '.join(xs[i+3:])
+            arg_str = ' '.join(quote_args(xs[i+3:]))
             command = f'python -m {module_name} {arg_str}'
         else:
             commandname = xs[0].split('/')[-1]
             srcfilename = xs[1].split('/')[-1] 
             assert commandname.startswith('python')
             assert srcfilename.endswith('.py')
-            arg_str = ' '.join(xs[2:])
+            arg_str = ' '.join(quote_args(xs[2:]))
             command = f'{commandname} {self.srcfile_prefix}{srcfilename} ' + arg_str
         
         self.train_dir.mkdir(exist_ok=True, parents=True)
