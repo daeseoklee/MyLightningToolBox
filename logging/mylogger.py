@@ -9,7 +9,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 def quote_args(arg_list):
     def has_to_quote(arg):
-        return any(c in arg for c in ['(', ')'])
+        return any(c in arg for c in ['(', ')', ':', ','])
 
     return [f'"{arg}"' if has_to_quote(arg) else arg for arg in arg_list]
 
@@ -58,7 +58,7 @@ class MyLogger(TensorBoardLogger):
             writer = csv.writer(f)
             writer.writerow(new_line)
         
-    
+        
     def write_command(self):
         xs = psutil.Process(os.getpid()).cmdline()
         if self.python_run_module:
