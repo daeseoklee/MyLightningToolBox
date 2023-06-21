@@ -9,6 +9,8 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 def quote_args(arg_list):
     def has_to_quote(arg):
+        if not arg.startswith('-') and '-' in arg:
+            return True
         return any(c in arg for c in ['(', ')', ':', ','])
 
     return [f'"{arg}"' if has_to_quote(arg) else arg for arg in arg_list]
